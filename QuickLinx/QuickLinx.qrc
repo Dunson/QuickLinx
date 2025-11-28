@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/QuickLinx"/>
+    <qresource prefix="/icons">
+        <file>quicklinx.ico</file>
+    </qresource>
+</RCC>
