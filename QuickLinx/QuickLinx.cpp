@@ -101,7 +101,7 @@ void QuickLinx::on_export_button_clicked()
     }
 
     ui.status_label->setText("Exporting...");
-    UpdateProgress(0, 1);
+    UpdateProgressBar(0, 1);
 
 	// 2. Load drivers from registry.
 	std::vector<EthDriver> drivers = RegistryManager::LoadDrivers();
@@ -119,7 +119,7 @@ void QuickLinx::on_export_button_clicked()
 
 	// 3. Export to CSV.
     std::wstring error;
-    if (!CSV::WriteDriversToFile(file_name.toStdWString(), drivers, error))
+    if (!CSV::write_drivers_to_file(file_name.toStdWString(), drivers, error))
     {
         QMessageBox::critical(
             this,
@@ -127,14 +127,14 @@ void QuickLinx::on_export_button_clicked()
             QString::fromStdWString(error));
 
 		ui.status_label->setText("Export failed.");
-        UpdateProgress(0, 1);
+        UpdateProgressBar(0, 1);
 		ui.progress_bar->setValue(0);
         return;
     }
 
     // 4. Update UI status.
 	ui.status_label->setText("Export completed successfully.");
-    UpdateProgress(1, 1);
+    UpdateProgressBar(1, 1);
 }
 
 void QuickLinx::on_import_button_clicked()
@@ -149,12 +149,12 @@ void QuickLinx::on_import_button_clicked()
         return;
 
 	ui.status_label->setText("Validating Format...");
-    UpdateProgress(0, 1);
+    UpdateProgressBar(0, 1);
 
 	std::wstring error;
     std::vector<EthDriver> drivers;
 
-    if (!CSV::ReadDriversFromFile(file_name.toStdWString(), drivers, error))
+    if (!CSV::read_drivers_from_file(file_name.toStdWString(), drivers, error))
     {
         QMessageBox::critical(
             this,
@@ -162,7 +162,7 @@ void QuickLinx::on_import_button_clicked()
             QString::fromWCharArray(error.c_str()));
 
 		ui.status_label->setText("Import failed. CSV error.");
-        UpdateProgress(0, 1);
+        UpdateProgressBar(0, 1);
         return;
     }
 
@@ -173,7 +173,7 @@ void QuickLinx::on_import_button_clicked()
 
     QMessageBox::information(this, "Import Test OK", summary);
 	ui.status_label->setText("Import Successful! (Parse Test Only)");
-    UpdateProgress(1, 1);
+    UpdateProgressBar(1, 1);
 }
 
 void QuickLinx::on_merge_button_clicked()
@@ -185,7 +185,7 @@ void QuickLinx::on_overwrite_button_clicked()
 }
 
 // Update the progress bar
-void QuickLinx::UpdateProgress(int current_step, int total_steps)
+void QuickLinx::UpdateProgressBar(int current_step, int total_steps)
 {
     if (total_steps <= 0)
 		total_steps = 1; // prevent division by zero

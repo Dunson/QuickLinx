@@ -12,7 +12,7 @@ public:
     ~QuickLinx();
 
     void DebugPrintDriversToConsole();
-    void UpdateProgress(int current_step, int total_steps);
+    void UpdateProgressBar(int current_step, int total_steps);
 
 private slots:
     void on_export_button_clicked();
