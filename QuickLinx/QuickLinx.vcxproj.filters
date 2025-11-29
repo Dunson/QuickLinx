@@ -21,6 +21,12 @@
       <UniqueIdentifier>{639EADAA-A684-42e4-A9AD-28FC9BCB8F7C}</UniqueIdentifier>
       <Extensions>ts</Extensions>
     </Filter>
+    <Filter Include="Source Files\registry">
+      <UniqueIdentifier>{ac158069-6e78-4ed0-80f1-4c051a510cb4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\csv">
+      <UniqueIdentifier>{c3d8f415-4c88-45fd-807e-bc0c6222c8db}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QuickLinx.qrc">
@@ -39,6 +45,15 @@
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CSV.cpp">
+      <Filter>Source Files\csv</Filter>
+    </ClCompile>
+    <ClCompile Include="RegistryKey.cpp">
+      <Filter>Source Files\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="RegistryManager.cpp">
+      <Filter>Source Files\registry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -92,9 +92,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="RegistryKey.cpp" />
+    <ClCompile Include="RegistryManager.cpp" />
     <QtRcc Include="QuickLinx.qrc" />
     <QtUic Include="QuickLinx.ui" />
     <QtMoc Include="QuickLinx.h" />
+    <ClCompile Include="CSV.cpp" />
     <ClCompile Include="QuickLinx.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
