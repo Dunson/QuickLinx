@@ -9,8 +9,8 @@ A fast, lightweight utility for modifying RSLinx Classic ethernet driver configu
 QuickLinx is a specialized tool designed to increase efficiency when managing RSLinx Classic ethernet driver configurations.
 
 QuickLinx provides a safe, intuitive interface for:
-* Exporting existing RSLinx driver configurations into a CSV format
-* Importing new configuration files from a CSV format
+* Exporting existing RSLinx driver configurations into a CSV file
+* Importing new configuration files from a CSV file
 * Merging imported drivers with the current configuration
 * Overwriting configurations entirely when needed
 
@@ -19,12 +19,14 @@ It is built for technicians, controls engineers, and automation professionals wh
 
 ## Developer comments: 
 
-    Before following these steps, take into consideration that QuickLinx is in an alpha state. It is recommended that you backup 
-    your current Windows Registry so that you have a restore point if any unplanned behavior occurs. 
+    Before following these steps, take into consideration that QuickLinx is in an alpha state. 
+    It is recommended that you backup your current Windows Registry so that you have a restore 
+    point if any unplanned behavior occurs. 
 
-    Also, as of now, for changes to take effect RSLinx Classic must be fully closed (not even running as a service). 
-    For the best experience, use QuickLinx before attempting to connect with controllers using Logix5000, Studio5000, etc. 
-    If you find that you did not close RSLinx Classic before using QuickLinx, simply close out of RSLinx and restart it or optionally 
+    Also, as of now, for changes to take effect RSLinx Classic must be fully closed 
+    (not even running as a service). For the best experience, use QuickLinx before attempting 
+    to connect with controllers using Logix5000, Studio5000, etc. If you find that you did not close 
+    RSLinx Classic before using QuickLinx, simply close out of RSLinx and restart it or optionally 
     find it in task manager and kill the process. When you relaunch RSLinx, you will find the updated drivers.
 
     NOTES: 
