@@ -136,5 +136,25 @@ After applying changes, restart RSLinx Classic to load and view the updated driv
 - Visual Studio 2026
 - Windows Registry API
 
+## Roadmap / Planned Features
+
+The following items are under consideration for future releases:
+
+- **Additional driver support**  
+  Evaluate and add support for additional RSLinx Classic driver types where appropriate.
+
+- **Integrated backup and restore**  
+  One-click backup of relevant registry keys before changes are applied, with an option to restore a previous configuration.
+
+- **Dry-run / preview mode**  
+  Show a detailed summary of the staged changes that would be applied (new drivers, updated nodes, removed nodes) before committing them.
+
+- **Logging and audit trail**  
+  Optional logging of all operations (imports, merges, overwrites) for traceability and troubleshooting.
+
+- **Usability improvements**  
+  UI refinements, clearer status messages, and additional safeguards for production environments.
+
+
 
 
