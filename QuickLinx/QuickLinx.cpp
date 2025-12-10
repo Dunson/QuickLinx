@@ -1,6 +1,7 @@
 #include "QuickLinx.h"
 #include "RegistryManager.h"
 #include "CSV.h"
+#include "ImportEngine.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -35,10 +36,10 @@ static void AttachConsole()
 
 static void ClearConsole() { std::system("cls"); }
 
-static void DumpDriversToDebug(const std::vector<EthDriver>& drivers)
+static void DumpDriversToConsole(const std::vector<EthDriver>& drivers)
 {
     AttachConsole();
-	ClearConsole();
+	//ClearConsole();
 
     qDebug().noquote() << "========== Parsed EthDriver list ==========";
 
@@ -101,7 +102,7 @@ void QuickLinx::on_export_button_clicked()
     }
 
     ui.status_label->setText("Exporting...");
-    UpdateProgressBar(0, 1);
+    update_progress_bar(0, 1);
 
 	// 2. Load drivers from registry.
 	std::vector<EthDriver> drivers = RegistryManager::LoadDrivers();
@@ -115,7 +116,7 @@ void QuickLinx::on_export_button_clicked()
         return;
     }
 
-	DumpDriversToDebug(drivers);
+	DumpDriversToConsole(drivers);
 
 	// 3. Export to CSV.
     std::wstring error;
@@ -127,14 +128,14 @@ void QuickLinx::on_export_button_clicked()
             QString::fromStdWString(error));
 
 		ui.status_label->setText("Export failed.");
-        UpdateProgressBar(0, 1);
+        update_progress_bar(0, 1);
 		ui.progress_bar->setValue(0);
         return;
     }
 
     // 4. Update UI status.
 	ui.status_label->setText("Export completed successfully.");
-    UpdateProgressBar(1, 1);
+    update_progress_bar(1, 1);
 }
 
 void QuickLinx::on_import_button_clicked()
@@ -149,12 +150,11 @@ void QuickLinx::on_import_button_clicked()
         return;
 
 	ui.status_label->setText("Validating Format...");
-    UpdateProgressBar(0, 1);
+    update_progress_bar(0, 1);
 
 	std::wstring error;
-    std::vector<EthDriver> drivers;
 
-    if (!CSV::read_drivers_from_file(file_name.toStdWString(), drivers, error))
+    if (!CSV::read_drivers_from_file(file_name.toStdWString(), m_csv_drivers, error))
     {
         QMessageBox::critical(
             this,
@@ -162,30 +162,252 @@ void QuickLinx::on_import_button_clicked()
             QString::fromWCharArray(error.c_str()));
 
 		ui.status_label->setText("Import failed. CSV error.");
-        UpdateProgressBar(0, 1);
+        update_progress_bar(0, 1);
         return;
     }
 
-	DumpDriversToDebug(drivers);
+	//DumpDriversToConsole(drivers);
 
 	// Successful read - Dont touch Registry yet.
-    QString summary = QString("Parsed %1 driver(s) from CSV.").arg(drivers.size());
+    QString summary = QString("Parsed %1 driver(s) from CSV. Ready for Import").arg(m_csv_drivers.size());
 
     QMessageBox::information(this, "Import Test OK", summary);
-	ui.status_label->setText("Import Successful! (Parse Test Only)");
-    UpdateProgressBar(1, 1);
+	ui.status_label->setText("Import Successful! Ready to Merge/Overwrite");
+    update_progress_bar(1, 1);
+	ui.merge_button->setEnabled(true);
+    ui.overwrite_button->setEnabled(true);
 }
 
 void QuickLinx::on_merge_button_clicked()
 {
+    // Make sure have drivers staged for merging
+    if (m_csv_drivers.empty())
+    {
+        QMessageBox::warning(
+            this,
+            "Merge Failed",
+            "No imported CSV drivers available to merge_drivers. Please import a CSV file first.");
+        return;
+    }
+
+	// Load existing drivers from registry
+	auto registry_drivers = RegistryManager::LoadDrivers();
+    if (registry_drivers.empty())
+    {
+        QMessageBox::warning(
+            this,
+            "Merge Failed",
+			"No AB_ETH drivers found in the Registry to merge_drivers with.");
+		return;
+    }
+
+    // Let the engine compute what to change/add
+	ui.status_label->setText("Merging Drivers...");
+    update_progress_bar(0, 1); // 0%
+
+    ImportEngine::ImportResult result =
+		ImportEngine::merge_drivers(registry_drivers, m_csv_drivers);
+
+    const std::size_t total_to_save =
+		result.updated_drivers.size() + result.new_drivers.size();
+    
+    if (total_to_save == 0)
+    {
+        QMessageBox::information(
+            this,
+            "Merge Complete",
+            "No changes were necessary. The Registry is already up to date.");
+		update_progress_bar(1, 1); // 100%
+        return;
+    }
+	
+	//Disable Buttons while working
+	ui.export_button->setEnabled(false);
+	ui.import_button->setEnabled(false);
+	ui.merge_button->setEnabled(false);
+	ui.overwrite_button->setEnabled(false);
+
+    // Save all drivers and update progress bar
+	bool all_ok = true;
+    std::wstring save_errors;
+
+	std::size_t saved_count = 0;
+    auto save_driver_with_progress = [&](const EthDriver& drv)
+        {
+            if (!RegistryManager::SaveDriver(drv)) 
+            {
+				all_ok = false;
+				save_errors += L"Failed to save driver: " + drv.name + L"' (" + drv.key_name + L")\n";
+            }
+			++saved_count;
+			update_progress_bar(static_cast<int>(saved_count), static_cast<int>(total_to_save));
+        };
+
+    // Save modified drivers
+    for (const auto& d : result.updated_drivers)
+        save_driver_with_progress(d);
+
+    // Save new drivers
+    for (const auto& d : result.new_drivers)
+        save_driver_with_progress(d);
+
+    // Re-enable buttons
+    ui.export_button->setEnabled(true);
+    ui.import_button->setEnabled(true);
+
+    // Deal with any errors returned
+    QString details;
+
+    if (!result.errors.empty())
+    {
+        for(const auto& e : result.errors)
+			details += QString::fromStdWString(e) + "\n";
+    }
+    if (!save_errors.empty())
+    {
+        details += QString::fromStdWString(save_errors) + "\n";
+	}
+    if (!details.isEmpty())
+    {
+		ui.status_label->setText("Merge completed with errors.");
+        QMessageBox::warning(
+            this,
+            "Merge Completed with Errors",
+			QString("The merge_drivers operation completed, but some errors occurred:\n\n%1").arg(details));
+    }
+    else if (!all_ok)
+    {
+		ui.status_label->setText("Merge failed while saving drivers.");
+        QMessageBox::critical(
+            this,
+            "Merge Failed",
+			"One or more drivers could not be saved to the Registry.");
+    }
+    else 
+    {
+		ui.status_label->setText("Merge completed successfully. Ready");
+    }
+
+    m_csv_drivers.clear();
 }
 
 void QuickLinx::on_overwrite_button_clicked()
 {
+    if (m_csv_drivers.empty())
+    {
+        QMessageBox::warning(
+            this,
+            "Overwrite Failed",
+            "No imported CSV drivers available to overwrite. "
+            "Please import a CSV file first.");
+        return;
+    }
+
+    auto registry_drivers = RegistryManager::LoadDrivers();
+    if (registry_drivers.empty())
+    {
+        QMessageBox::warning(
+            this,
+            "Overwrite Failed",
+            "No existing AB_ETH drivers were found in the registry.");
+        return;
+    }
+
+    ui.status_label->setText("Overwriting drivers...");
+    update_progress_bar(0, 1);
+
+    ImportEngine::ImportResult result =
+        ImportEngine::overwrite_drivers(registry_drivers, m_csv_drivers);
+
+    const std::size_t total_ops =
+        result.updated_drivers.size() +
+        result.new_drivers.size();
+
+    if (total_ops == 0)
+    {
+        ui.status_label->setText("Overwrite complete. No changes needed.");
+        update_progress_bar(1, 1);
+        return;
+    }
+
+    ui.export_button->setEnabled(false);
+    ui.import_button->setEnabled(false);
+    ui.merge_button->setEnabled(false);
+    ui.overwrite_button->setEnabled(false);
+
+    std::size_t completed = 0;
+    auto bump_progress = [&]()
+        {
+            ++completed;
+            update_progress_bar(static_cast<int>(completed),
+                static_cast<int>(total_ops));
+        };
+
+    bool all_ok = true;
+    std::wstring save_errors;
+
+    // Save updated existing drivers
+    for (const auto& d : result.updated_drivers)
+    {
+        if (!RegistryManager::SaveDriver(d))
+        {
+            all_ok = false;
+            save_errors += L"Failed to save driver '" + d.name +
+                L"' (" + d.key_name + L")\n";
+        }
+        bump_progress();
+    }
+
+    // Save new drivers
+    for (const auto& d : result.new_drivers)
+    {
+        if (!RegistryManager::SaveDriver(d))
+        {
+            all_ok = false;
+            save_errors += L"Failed to save new driver '" + d.name +
+                L"' (" + d.key_name + L")\n";
+        }
+        bump_progress();
+    }
+
+    ui.export_button->setEnabled(true);
+    ui.import_button->setEnabled(true);
+
+    // Clear staged CSV so the user must import again
+    m_csv_drivers.clear();
+
+    // Final status / errors
+    QString details;
+    for (const auto& e : result.errors)
+        details += QString::fromStdWString(e) + "\n";
+    if (!save_errors.empty())
+        details += QString::fromStdWString(save_errors);
+
+    if (!details.isEmpty())
+    {
+        ui.status_label->setText("Overwrite completed with issues.");
+        QMessageBox::warning(
+            this,
+            "Overwrite Completed With Warnings",
+            details);
+    }
+    else if (!all_ok)
+    {
+        ui.status_label->setText("Overwrite failed while saving drivers.");
+        QMessageBox::critical(
+            this,
+            "Overwrite Failed",
+            "One or more drivers could not be written to the registry.");
+    }
+    else
+    {
+        ui.status_label->setText("Overwrite completed successfully. Ready");
+    }
+	m_csv_drivers.clear();
 }
 
 // Update the progress bar
-void QuickLinx::UpdateProgressBar(int current_step, int total_steps)
+void QuickLinx::update_progress_bar(int current_step, int total_steps)
 {
     if (total_steps <= 0)
 		total_steps = 1; // prevent division by zero

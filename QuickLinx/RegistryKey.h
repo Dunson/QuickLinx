@@ -4,6 +4,29 @@
 #include <string>
 #include <vector>
 
+/*
+	File: RegistryKey.h
+
+	Description: 
+		A simple RAII (Resource Acquisition Is Initialization) wrapper around Windows Registry keys.
+		
+		Contains methods for opening, creating, querying, setting, enumerating, and deleting 
+		registry keys and values.
+		
+		Makes use of Windows API functions such as:
+			* RegOpenKeyEx
+			* RegCreateKeyEx
+			* RegQueryValueEx
+			* RegSetValueEx 
+			* RegEnumKeyEx
+			* RegEnumValue 
+			* RegDeleteValue
+			* RegDeleteKey.
+		
+		Ensures proper resource management by automatically closing the registry key handle
+		when the RegistryKey object goes out of scope.
+*/
+
 
 class RegistryKey {
 public:
@@ -32,10 +55,10 @@ public:
 						DWORD options = REG_OPTION_NON_VOLATILE, 
 						REGSAM access = KEY_READ | KEY_WRITE | KEY_WOW64_32KEY) noexcept;
 
-	//Check if open
+	// Check if open
 	bool IsOpen() const noexcept { return m_hKey != nullptr; }
 
-	//Explicitly close if still open
+	// Explicitly close if still open
 	void Close() noexcept;
 
 	//-----------------Enumeration-------------------
@@ -44,7 +67,7 @@ public:
 	LONG EnumSubkey(	DWORD index, 
 						std::wstring& name_out) const noexcept;
 
-	//Enumerate value entries (name, type, raw data)
+	// Enumerate value entries (name, type, raw data)
 	LONG EnumValue(		DWORD index, 
 						std::wstring& name_out, 
 						DWORD& type_out, 

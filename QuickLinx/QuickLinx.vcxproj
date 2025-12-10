@@ -92,6 +92,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ImportEngine.cpp" />
     <ClCompile Include="RegistryKey.cpp" />
     <ClCompile Include="RegistryManager.cpp" />
     <QtRcc Include="QuickLinx.qrc" />
@@ -104,6 +105,7 @@
   <ItemGroup>
     <ClInclude Include="CSV.h" />
     <ClInclude Include="EthDriver.h" />
+    <ClInclude Include="ImportEngine.h" />
     <ClInclude Include="RegistryKey.h" />
     <ClInclude Include="RegistryManager.h" />
   </ItemGroup>

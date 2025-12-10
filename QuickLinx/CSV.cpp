@@ -34,8 +34,8 @@ namespace
 
 	// join vector<wstring> with a separator
 	// e.g. join({"a","b","c"}, ",") -> "a,b,c"
-	std::wstring join(	const std::vector<std::wstring>& parts,
-						const std::wstring& sep)
+	std::wstring join(			const std::vector<std::wstring>& parts,
+								const std::wstring& sep)
 	{
 		if (parts.empty())
 			return L"";

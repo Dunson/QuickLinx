@@ -27,6 +27,9 @@
     <Filter Include="Source Files\csv">
       <UniqueIdentifier>{c3d8f415-4c88-45fd-807e-bc0c6222c8db}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\import">
+      <UniqueIdentifier>{7e3d63b1-8e72-4b26-8f52-26fd32cabfaf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QuickLinx.qrc">
@@ -55,6 +58,9 @@
     <ClCompile Include="RegistryManager.cpp">
       <Filter>Source Files\registry</Filter>
     </ClCompile>
+    <ClCompile Include="ImportEngine.cpp">
+      <Filter>Source Files\import</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EthDriver.h">
@@ -67,6 +73,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CSV.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImportEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

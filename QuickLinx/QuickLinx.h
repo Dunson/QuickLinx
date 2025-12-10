@@ -3,6 +3,8 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_QuickLinx.h"
 
+#include "EthDriver.h"
+
 class QuickLinx : public QMainWindow
 {
     Q_OBJECT
@@ -11,8 +13,7 @@ public:
     QuickLinx(QWidget *parent = nullptr);
     ~QuickLinx();
 
-    void DebugPrintDriversToConsole();
-    void UpdateProgressBar(int current_step, int total_steps);
+    void update_progress_bar(int current_step, int total_steps);
 
 private slots:
     void on_export_button_clicked();
@@ -22,5 +23,6 @@ private slots:
 
 private:
     Ui::QuickLinxClass ui;
+	std::vector<EthDriver> m_csv_drivers;
 };
 

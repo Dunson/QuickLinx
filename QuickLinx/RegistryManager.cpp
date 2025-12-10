@@ -158,7 +158,7 @@ std::vector<EthDriver> RegistryManager::LoadDrivers()
 
 
 //	---------------------------------------------------------------------
-//	Save (create or overwrite) one driver
+//	Save (create or overwrite_drivers) one driver
 //	---------------------------------------------------------------------
 bool RegistryManager::SaveDriver(const EthDriver& driver)
 {

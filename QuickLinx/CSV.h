@@ -1,8 +1,18 @@
 #pragma once
+#include "EthDriver.h"
 
 #include <string>
 #include <vector>
-#include "EthDriver.h"
+
+/*
+	File: CSV.h
+
+	Desc: Provides functions to read and write EthDriver entries
+		  to and from CSV files.
+
+		  Helper functions are included in CSV.cpp under a private namespace
+*/
+
 
 namespace CSV
 {
