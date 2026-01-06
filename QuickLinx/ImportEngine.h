@@ -1,42 +1,53 @@
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "EthDriver.h"
 
 /*
 	File: ImportEngine.h
 
-	Description: 
-		Provides functions to merge_drivers or overwrite_drivers EthDriver entries
-		from a CSV import into the existing registry entries.
+	Description:
+		Provides functions to merge or overwrite EthDriver entries from a CSV import
+		into the existing registry entries.
 
-		Functions return an ImportResult struct containing
-		details about the operation, including updated drivers,
-		new drivers added, any errors encountered, and a success flag.
+		Functions return an ImportResult struct containing details about the operation,
+		including updated drivers, newly added drivers, any errors encountered,
+		and a success flag.
 
-		Helper functions are included in ImportEngine.cpp under a private namespace
+		Helper functions are defined in ImportEngine.cpp under a private namespace.
 */
 
 namespace ImportEngine
 {
 	struct ImportResult
 	{
-		std::vector<EthDriver>		updated_drivers;		// Drivers that were modified	(Existing registry entries)
-		std::vector<EthDriver>		new_drivers;			// Drivers that were added		(New AB_ETH-x entries)		
-			
-		std::vector<std::wstring>	errors;					// Any errors that occurred during the import process
+		// Drivers that are modified (existing registry entries with updated values)
+		std::vector<EthDriver> updated_drivers;
 
-		bool						success = true;			// Success flag
+		// Drivers that are added (new AB_ETH-x entries created)
+		std::vector<EthDriver> new_drivers;
+
+		// Collection of error messages that occurred during import processing
+		std::vector<std::wstring> errors;
+
+		// Indicates whether the operation completed successfully
+		bool success = true;
 	};
 
-	// Merges the imported drivers into the registry drivers.
-	ImportResult merge_drivers(				const std::vector<EthDriver>& registry_drivers,
-									const std::vector<EthDriver>& csv_drivers);
+	// Merges imported drivers into registry drivers, keeping existing entries and updating matches.
+	// Returns an ImportResult with updated/new drivers and any errors encountered.
+	ImportResult merge_drivers(
+		const std::vector<EthDriver>& registry_drivers,
+		const std::vector<EthDriver>& csv_drivers
+	);
 
-	// Overwrites the registry drivers with the imported drivers.
-	ImportResult overwrite_drivers(			const std::vector<EthDriver>& registry_drivers,
-									const std::vector<EthDriver>& csv_drivers);
+	// Overwrites registry drivers with imported drivers, replacing all matching entries.
+	// Returns an ImportResult with updated/new drivers and any errors encountered.
+	ImportResult overwrite_drivers(
+		const std::vector<EthDriver>& registry_drivers,
+		const std::vector<EthDriver>& csv_drivers
+	);
 
 } // namespace ImportEngine

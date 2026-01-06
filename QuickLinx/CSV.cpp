@@ -1,17 +1,17 @@
 ﻿#include "CSV.h"
 
-#include <fstream>
-#include <sstream>
 #include <algorithm>
 #include <cwctype>
+#include <fstream>
 #include <map>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 
-//Helper Functions in anonymous namespace
-namespace 
+// Helper Functions (Anonymous Namespace)
+namespace
 {
-	// Small Trim helper functions to remove leading/trailing whitespace
+	// Removes leading whitespace from a wide string
 	inline void trim_left(std::wstring& s)
 	{
 		s.erase(s.begin(),
@@ -19,6 +19,7 @@ namespace
 				[](wchar_t ch) { return !iswspace(ch); }));
 	}
 
+	// Removes trailing whitespace from a wide string
 	inline void trim_right(std::wstring& s)
 	{
 		s.erase(std::find_if(s.rbegin(), s.rend(),
@@ -26,16 +27,17 @@ namespace
 			s.end());
 	}
 
+	// Removes leading and trailing whitespace from a wide string
 	inline void trim(std::wstring& s)
 	{
 		trim_left(s);
 		trim_right(s);
 	}
 
-	// join vector<wstring> with a separator
-	// e.g. join({"a","b","c"}, ",") -> "a,b,c"
-	std::wstring join(			const std::vector<std::wstring>& parts,
-								const std::wstring& sep)
+	// Joins a vector of wide strings with a separator.
+	// Example: join({"a","b","c"}, ",") returns "a,b,c"
+	std::wstring join(const std::vector<std::wstring>& parts,
+		const std::wstring& sep)
 	{
 		if (parts.empty())
 			return L"";
@@ -49,11 +51,12 @@ namespace
 		return ss.str();
 	}
 
-	// Parse an IPv4 string into "base" (first three octets + dot) and "host" (last octet)
-	// e.g. "a.b.c.d" -> base="a.b.c.", host=d
-	bool parse_ip_last_octet(	const std::wstring& ip,
-								std::wstring& base,
-								int& host)
+	// Parses an IPv4 string into base (first three octets + dot) and host (last octet).
+	// Example: "192.168.1.10" returns base="192.168.1.", host=10
+	// Returns false if the format is invalid or the last octet is out of range [0, 255].
+	bool parse_ip_last_octet(const std::wstring& ip,
+		std::wstring& base,
+		int& host)
 	{
 		std::wstring s = ip;
 		trim(s);
@@ -85,9 +88,10 @@ namespace
 		return true;
 	}
 
-	// Convert node list to one or more ranges.
-	// Each result is either "base.start-end" or "base.host".
-	// Different subnets (different base) become separate ranges.
+	// Converts a list of node IP addresses into compact range notation.
+	// Groups IPs by subnet base and builds ranges (e.g., "192.168.1.10-20").
+	// Single IPs within a subnet are represented as-is (e.g., "192.168.1.5").
+	// Non-IPv4 entries are included as-is without range compression.
 	std::vector<std::wstring> nodes_to_ranges(const std::vector<std::wstring>& nodes)
 	{
 		std::vector<std::wstring> results;
@@ -120,7 +124,7 @@ namespace
 			if (hosts.empty())
 				continue;
 
-			// Sort and dedupe
+			// Sort and deduplicate hosts
 			std::sort(hosts.begin(), hosts.end(),
 				[](const NodeInfo& a, const NodeInfo& b) {
 					return a.host < b.host;
@@ -131,7 +135,7 @@ namespace
 				}),
 				hosts.end());
 
-			// Walk and form ranges
+			// Walk through sorted hosts and form contiguous ranges
 			size_t i = 0;
 			while (i < hosts.size())
 			{
@@ -161,9 +165,10 @@ namespace
 		}
 		return results;
 	}
-	
-	// Split a CSV line into columns (simple, no quotes handling)
-	// e.g. "a,b,c" -> {"a","b","c"}
+
+	// Splits a CSV line into columns by comma delimiter.
+	// Example: "a,b,c" returns {"a","b","c"}
+	// Trims whitespace from each column.
 	std::vector<std::wstring> split_csv_line(const std::wstring& line)
 	{
 		std::vector<std::wstring> cols;
@@ -188,15 +193,16 @@ namespace
 		return cols;
 	}
 
-	// Very simple IPv4 validator: "a.b.c.d" with octets 0–255
+	// Validates that a string represents a valid IPv4 address (a.b.c.d).
+	// Each octet must be a decimal number in the range [0, 255].
+	// Returns false for empty strings, malformed addresses, or out-of-range octets.
 	bool is_valid_ipv4(const std::wstring& ip_addr)
 	{
 		std::wstring ip_str = ip_addr;
 		trim(ip_str);
-		
-		// Empty string check
+
 		if (ip_str.empty())
-			return false;	// Empty string is not valid
+			return false;
 
 		std::vector<std::wstring> ip_octets;
 		std::wstring curr_octet;
@@ -244,15 +250,17 @@ namespace
 		return true;
 	}
 
-
-	// Returns true if line_item looks like: "a.b.c.start-end"
+	// Returns true if the string contains a hyphen, indicating a potential IP range.
+	// Example: "192.168.1.10-20" returns true; "192.168.1.10" returns false.
 	bool has_ip_range(const std::wstring& line_item)
 	{
 		return line_item.find(L'-') != std::wstring::npos;
 	}
 
-	// Expand "a.b.c.start-end" into individual IP addresses.
-	// On any error (bad syntax, bad numbers, end < start, etc.) return an empty vector.
+	// Expands an IP range string (e.g., "192.168.1.10-20") into individual IP addresses.
+	// Returns a vector of expanded IPs; returns empty vector on any parsing error.
+	// Errors include: malformed syntax, non-numeric ranges, out-of-range octets,
+	// or end < start (e.g., "192.168.1.20-10").
 	std::vector<std::wstring> expand_ip_range(const std::wstring& line_item)
 	{
 		std::wstring s = line_item;
@@ -263,16 +271,16 @@ namespace
 		// Find last '.' to separate base from last octet + range
 		std::size_t last_dot = s.find_last_of(L'.');
 		if (last_dot == std::wstring::npos)
-			return {}; // not a valid IP format
+			return {}; // Not a valid IP format
 
-		std::wstring base = s.substr(0, last_dot + 1);   // includes trailing '.'
-		std::wstring tail = s.substr(last_dot + 1);      // e.g. "10-20" or "10"
+		std::wstring base = s.substr(0, last_dot + 1);   // Includes trailing '.'
+		std::wstring tail = s.substr(last_dot + 1);      // e.g., "10-20" or "10"
 
 		trim(tail);
 		if (tail.empty())
-			return {}; // no last octet
+			return {}; // No last octet
 
-		// We only handle the "start-end" from here on 
+		// Look for dash indicating a range
 		std::size_t dash_pos = tail.find(L'-');
 		if (dash_pos == std::wstring::npos)
 			return {}; // No dash -> not a range
@@ -284,9 +292,9 @@ namespace
 		trim(range_end);
 
 		if (range_start.empty() || range_end.empty())
-			return {}; // Missing start or end range. ex: "192.168.1.-5" and "192.168.1.10-"
+			return {}; // Missing start or end (e.g., "192.168.1.-5" or "192.168.1.10-")
 
-		// Make sure both start and end are all digits
+		// Validate that both start and end contain only digits
 		auto is_all_digits = [](const std::wstring& t) {
 			if (t.empty()) return false;
 			for (wchar_t ch : t)
@@ -295,10 +303,10 @@ namespace
 					return false;
 			}
 			return true;
-			};
+		};
 
 		if (!is_all_digits(range_start) || !is_all_digits(range_end))
-			return {};	// Non-digit characters in range
+			return {}; // Non-digit characters in range
 
 		int start = 0;
 		int end = 0;
@@ -315,11 +323,11 @@ namespace
 
 		// Octet range must be 0–255 and end >= start
 		if (start < 0 || start > 255 || end < 0 || end > 255 || end < start)
-			return{}; // This catches the a.b.c.d-e case where d > e and where d or e > 255
+			return {}; // Out of range or reversed range
 
-		// Finally, build the list of IPs
+		// Build the list of expanded IPs
 		std::vector<std::wstring> ips;
-		ips.reserve(static_cast<std::size_t>(end - start + 1));	// Using reserve for memory allocation efficiency
+		ips.reserve(static_cast<std::size_t>(end - start + 1));
 
 		for (int i = start; i <= end; ++i)
 		{
@@ -329,28 +337,25 @@ namespace
 		}
 		return ips;
 	}
-	
-}	// namespace
 
-namespace CSV 
+} // namespace
+
+namespace CSV
 {
-	/*	-----------------------------------------------------------------
-		Function: read_drivers_from_file
-
-		Desc: Reads ETH drivers from a CSV file into EthDriver structs
-
-		Format: Type,Name,Range
-		Example: AB_ETH,FL-IRVING, 192.168.2-90
-		-----------------------------------------------------------------
-	*/
-	bool read_drivers_from_file(	const std::wstring& path,
-									std::vector<EthDriver>& drivers_out,
-									std::wstring& error_message)
+	// Reads Ethernet drivers from a CSV file into EthDriver structures.
+	// CSV Format: Type,Name,Range
+	// Example: AB_ETH,FL-IRVING,192.168.1.2-90
+	//
+	// Returns true on success; false if validation or parsing fails.
+	// On error, error_message contains a descriptive error explanation.
+	bool read_drivers_from_file(const std::wstring& path,
+		std::vector<EthDriver>& drivers_out,
+		std::wstring& error_message)
 	{
 		drivers_out.clear();
 		error_message.clear();
 
-		// 1. Validate structure first
+		// 1. Validate CSV structure first
 		if (!validate_csv_format(path, error_message))
 			return false;
 
@@ -370,9 +375,9 @@ namespace CSV
 			return false;
 		}
 
-		std::size_t line_num = 2;   // data starts at line 2
+		std::size_t line_num = 2;   // Data starts at line 2
 
-		// Per-driver sets of IPs we've already seen. Used for duplicate detection.
+		// Per-driver sets of IPs already seen (for duplicate detection)
 		std::unordered_map<std::wstring, std::unordered_set<std::wstring>> seen_nodes;
 
 		while (std::getline(file, line))
@@ -389,7 +394,7 @@ namespace CSV
 			if (cols.size() < 3)
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": expected 3 columns (Type,Name,Range).";
+					L": expected 3 columns (Type,Name,Range).";
 				return false;
 			}
 
@@ -404,14 +409,14 @@ namespace CSV
 			if (type != L"AB_ETH")
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": unsupported Type \"" + type + L"\".";
+					L": unsupported Type \"" + type + L"\".";
 				return false;
 			}
 
 			if (name.empty())
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": Name field is empty.";
+					L": Name field is empty.";
 				return false;
 			}
 
@@ -441,10 +446,10 @@ namespace CSV
 				driver_ptr = &(*it);
 			}
 
-			// Ensure we have a set for this driver name
-			auto& set_ref = seen_nodes[name]; // creates empty set if not present
+			// Ensure we have a set for this driver name (creates empty set if not present)
+			auto& set_ref = seen_nodes[name];
 
-			// Expand range -> IPs
+			// Expand range into individual IPs
 			std::vector<std::wstring> ips;
 			if (has_ip_range(range))
 			{
@@ -452,8 +457,8 @@ namespace CSV
 				if (ips.empty())
 				{
 					error_message = L"Line " + std::to_wstring(line_num) +
-									L": range \"" + range +
-									L"\" did not yield any addresses.";
+						L": range \"" + range +
+						L"\" did not yield any addresses.";
 					return false;
 				}
 			}
@@ -468,15 +473,16 @@ namespace CSV
 				std::wstring ip = ip_raw;
 				trim(ip);
 
-				// Duplicate check (per driver)
+				// Check for duplicates within this driver
 				if (set_ref.find(ip) != set_ref.end())
 				{
 					error_message = L"Line " + std::to_wstring(line_num) +
-									L": duplicate node IP \"" + ip +
-									L"\" for driver \"" + name + L"\".";
+						L": duplicate node IP \"" + ip +
+						L"\" for driver \"" + name + L"\".";
 					return false;
 				}
 
+				// Check node count limit
 				if (driver_ptr->nodes.size() >= 254)
 				{
 					error_message =
@@ -497,17 +503,16 @@ namespace CSV
 		return true;
 	}
 
-	/*	-----------------------------------------------------------------
-		Function: write_drivers_to_file
-
-		Desc: Writes existing ETH drivers to a CSV file
-		-----------------------------------------------------------------
-	*/
-	bool write_drivers_to_file(		const std::wstring& path,
-									const std::vector<EthDriver>& drivers_in,
-									std::wstring& error_message)
+	// Writes Ethernet drivers to a CSV file in the standard format.
+	// Converts individual node IPs into compact range notation for readability.
+	// CSV Format: Type,Name,Range
+	//
+	// Returns true on success; false if file operations fail.
+	// On error, error_message contains a descriptive explanation.
+	bool write_drivers_to_file(const std::wstring& path,
+		const std::vector<EthDriver>& drivers_in,
+		std::wstring& error_message)
 	{
-		
 		error_message.clear();
 
 		std::wofstream file(path);
@@ -517,7 +522,7 @@ namespace CSV
 			return false;
 		}
 
-		//CSV Header
+		// Write CSV header
 		file << L"Type,Name,Range\n";
 		for (const auto& driver : drivers_in)
 		{
@@ -533,7 +538,6 @@ namespace CSV
 			{
 				file << L"AB_ETH," << driver.name << L"," << r << L"\n";
 			}
-			
 		}
 
 		if (!file.good())
@@ -543,17 +547,16 @@ namespace CSV
 		}
 
 		return true;
-		
 	}
 
-	/*	-----------------------------------------------------------------
-		Function: validate_csv_format
-
-		Desc: Validation to check the CSV file format is correct
-		-----------------------------------------------------------------
-	*/
-	bool validate_csv_format(		const std::wstring& path,
-									std::wstring& error_message)
+	// Validates the CSV file format before processing.
+	// Checks header format, column count, and data validity (types, ranges, limits).
+	// Ensures all IP ranges are parseable and within valid ranges.
+	//
+	// Returns true if the file format is valid; false otherwise.
+	// On error, error_message contains a descriptive explanation and line number.
+	bool validate_csv_format(const std::wstring& path,
+		std::wstring& error_message)
 	{
 		error_message.clear();
 
@@ -566,7 +569,7 @@ namespace CSV
 
 		std::wstring line;
 
-		// ---- Check header ----
+		// Check header
 		if (!std::getline(file, line))
 		{
 			error_message = L"CSV file is empty.";
@@ -588,12 +591,12 @@ namespace CSV
 			return false;
 		}
 
-		// ---- Validate each data line ----
-		std::size_t line_num = 2;   // data starts at line 2
+		// Validate each data line
+		std::size_t line_num = 2;   // Data starts at line 2
 
 		while (std::getline(file, line))
 		{
-			// Allow completely blank lines
+			// Allow blank lines
 			std::wstring tmp = line;
 			trim(tmp);
 			if (tmp.empty())
@@ -606,7 +609,7 @@ namespace CSV
 			if (cols.size() < 3)
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": expected 3 columns (Type,Name,Range).";
+					L": expected 3 columns (Type,Name,Range).";
 				return false;
 			}
 
@@ -618,12 +621,12 @@ namespace CSV
 			trim(name);
 			trim(range);
 
-			// Type must be AB_ETH (for now)
+			// Type must be AB_ETH
 			if (type != L"AB_ETH")
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": unsupported Type \"" + type + L"\". "
-								L"Expected \"AB_ETH\".";
+					L": unsupported Type \"" + type + L"\". "
+					L"Expected \"AB_ETH\".";
 				return false;
 			}
 
@@ -631,35 +634,35 @@ namespace CSV
 			if (name.empty())
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": Name field is empty.";
+					L": Name field is empty.";
 				return false;
 			}
 
 			if (name.length() > 15)
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": driver name \"" + name +
-								L"\" exceeds 15-character limit.";
+					L": driver name \"" + name +
+					L"\" exceeds 15-character limit.";
 				return false;
 			}
 
-			// Range must be either a single IP or an IP range
+			// Range: non-empty and valid (single IP or IP range)
 			if (range.empty())
 			{
 				error_message = L"Line " + std::to_wstring(line_num) +
-								L": Range field is empty.";
+					L": Range field is empty.";
 				return false;
 			}
 
 			if (has_ip_range(range))
 			{
-				// Expand and validate each IP
+				// Expand and validate each IP from the range
 				auto ips = expand_ip_range(range);
 				if (ips.empty())
 				{
 					error_message = L"Line " + std::to_wstring(line_num) +
-									L": IP range \"" + range +
-									L"\" did not produce any addresses.";
+						L": IP range \"" + range +
+						L"\" did not produce any addresses.";
 					return false;
 				}
 
@@ -668,8 +671,8 @@ namespace CSV
 					if (!is_valid_ipv4(ip))
 					{
 						error_message = L"Line " + std::to_wstring(line_num) +
-										L": \"" + ip +
-										L"\" is not a valid IPv4 address.";
+							L": \"" + ip +
+							L"\" is not a valid IPv4 address.";
 						return false;
 					}
 				}
@@ -680,9 +683,9 @@ namespace CSV
 				if (!is_valid_ipv4(range))
 				{
 					error_message = L"Line " + std::to_wstring(line_num) +
-									L": Range \"" + range +
-									L"\" is neither a valid IPv4 address "
-									L"nor a valid range.";
+						L": Range \"" + range +
+						L"\" is neither a valid IPv4 address "
+						L"nor a valid range.";
 					return false;
 				}
 			}
@@ -692,4 +695,5 @@ namespace CSV
 
 		return true;
 	}
-}	// namespace CSV
+
+} // namespace CSV

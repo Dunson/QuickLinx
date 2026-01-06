@@ -1,30 +1,33 @@
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
+
 #include "EthDriver.h"
 
 /*
 	File: RegistryManager.h
 
 	Description:
-		Provides functions to load, save, and delete EthDriver entries in the Windows Registry.
-		All functions are static and operate on EthDriver structures defined in EthDriver.h.
+		Provides static functions to load, save, and delete EthDriver entries from the
+		Windows Registry. All operations are performed on EthDriver structures and
+		interact with registry keys under:
 
+		HKLM\SOFTWARE\WOW6432Node\Rockwell Software\RSLinx\Drivers\AB_ETH\
 */
 
-
-class RegistryManager {
-
+class RegistryManager
+{
 public:
-
-	//	Load all AB_ETH-x drivers from Registry
+	// Loads all AB_ETH-x driver configurations from the registry.
+	// Returns a vector of EthDriver structures; empty vector if no drivers found.
 	static std::vector<EthDriver> LoadDrivers();
 
-	//	Save (create or overwrite_drivers) one driver (Returns true on success)
+	// Saves (creates or overwrites) a single driver in the registry.
+	// Returns true on success; false if the operation failed.
 	static bool SaveDriver(const EthDriver& driver);
 
-	//	Delete a driver
+	// Deletes a driver from the registry by its key name (e.g., "AB_ETH-1").
+	// Returns true on success; false if the driver was not found or deletion failed.
 	static bool DeleteDriver(const std::wstring& keyName);
-
 };

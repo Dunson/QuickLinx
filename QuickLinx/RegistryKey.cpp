@@ -7,12 +7,12 @@ RegistryKey::~RegistryKey()
 	Close();
 }
 
-//------------------------------------------------------
-// Open an existing key (read-only by default)
-//------------------------------------------------------
-LONG RegistryKey::Open(		HKEY root,
-							const std::wstring& sub_key,
-							REGSAM access) noexcept
+// Opens an existing registry key in read-only mode (by default).
+// Closes any previously held handle before opening a new one.
+// Returns ERROR_SUCCESS on success; other LONG values indicate Windows API errors.
+LONG RegistryKey::Open(HKEY root,
+	const std::wstring& sub_key,
+	REGSAM access) noexcept
 {
 	// Close any existing handle first
 	Close();
@@ -21,7 +21,7 @@ LONG RegistryKey::Open(		HKEY root,
 	const LONG result = ::RegOpenKeyExW(
 		root,
 		sub_key.c_str(),
-		0,          // reserved
+		0,                // Reserved
 		access,
 		&hKey);
 
@@ -33,13 +33,13 @@ LONG RegistryKey::Open(		HKEY root,
 	return result;
 }
 
-//------------------------------------------------------
-// Create (or open) a key
-//------------------------------------------------------
-LONG RegistryKey::Create(	HKEY root,
-							const std::wstring& sub_key,
-							DWORD options,
-							REGSAM access) noexcept
+// Creates or opens a registry key with the specified options and access rights.
+// Closes any previously held handle before operating on a new one.
+// Returns ERROR_SUCCESS on success; other LONG values indicate Windows API errors.
+LONG RegistryKey::Create(HKEY root,
+	const std::wstring& sub_key,
+	DWORD options,
+	REGSAM access) noexcept
 {
 	// Close any existing handle first
 	Close();
@@ -50,11 +50,11 @@ LONG RegistryKey::Create(	HKEY root,
 	const LONG result = ::RegCreateKeyExW(
 		root,
 		sub_key.c_str(),
-		0,                  // reserved
-		nullptr,            // class string
+		0,                // Reserved
+		nullptr,          // Class string (unused)
 		options,
 		access,
-		nullptr,            // security attributes
+		nullptr,          // Security attributes (uses default)
 		&hKey,
 		&disposition);
 
@@ -66,9 +66,8 @@ LONG RegistryKey::Create(	HKEY root,
 	return result;
 }
 
-//------------------------------------------------------
-// Explicit close
-//------------------------------------------------------
+// Explicitly closes the registry key handle if currently open.
+// Safe to call even if the key is not open.
 void RegistryKey::Close() noexcept
 {
 	if (m_hKey != nullptr)
@@ -78,18 +77,18 @@ void RegistryKey::Close() noexcept
 	}
 }
 
-//------------------------------------------------------
-// Enumerate subkeys by index
-//------------------------------------------------------
-LONG RegistryKey::EnumSubkey(	DWORD index,
-								std::wstring& name_out) const noexcept
+// Enumerates subkey names at the specified index.
+// Returns ERROR_SUCCESS on success; ERROR_NO_MORE_ITEMS if index exceeds available subkeys.
+// Automatically resizes the buffer if the initial capacity is insufficient.
+LONG RegistryKey::EnumSubkey(DWORD index,
+	std::wstring& name_out) const noexcept
 {
 	name_out.clear();
 
 	if (m_hKey == nullptr)
 		return ERROR_INVALID_HANDLE;
 
-	// Start with a reasonable buffer; will grow if needed.
+	// Start with a reasonable buffer; will grow if needed
 	DWORD name_len = 256;
 	std::wstring buffer(name_len, L'\0');
 	FILETIME ft = {};
@@ -106,7 +105,7 @@ LONG RegistryKey::EnumSubkey(	DWORD index,
 
 	if (result == ERROR_MORE_DATA)
 	{
-		// name_len now contains the required size (in chars)
+		// name_len now contains the required size (in characters)
 		buffer.assign(name_len + 1, L'\0');
 		result = ::RegEnumKeyExW(
 			m_hKey,
@@ -121,20 +120,20 @@ LONG RegistryKey::EnumSubkey(	DWORD index,
 
 	if (result == ERROR_SUCCESS)
 	{
-		// name_len does not include terminating null
+		// name_len does not include the terminating null character
 		name_out.assign(buffer.data(), name_len);
 	}
 
 	return result;
 }
 
-//------------------------------------------------------
-// Enumerate values by index (name, type, raw data)
-//------------------------------------------------------
-LONG RegistryKey::EnumValue(	DWORD index,
-								std::wstring& name_out,
-								DWORD& type_out,
-								std::vector<BYTE>& data_out) const noexcept
+// Enumerates value entries (name, type, raw data) at the specified index.
+// Returns ERROR_SUCCESS on success; ERROR_NO_MORE_ITEMS if index exceeds available values.
+// Automatically resizes buffers if initial capacity is insufficient.
+LONG RegistryKey::EnumValue(DWORD index,
+	std::wstring& name_out,
+	DWORD& type_out,
+	std::vector<BYTE>& data_out) const noexcept
 {
 	name_out.clear();
 	data_out.clear();
@@ -143,8 +142,8 @@ LONG RegistryKey::EnumValue(	DWORD index,
 	if (m_hKey == nullptr)
 		return ERROR_INVALID_HANDLE;
 
-	DWORD name_len = 256;	// in characters
-	DWORD data_size = 256;	// in bytes
+	DWORD name_len = 256;  // In characters
+	DWORD data_size = 256; // In bytes
 
 	std::wstring name_buffer(name_len, L'\0');
 	data_out.resize(data_size);
@@ -161,7 +160,7 @@ LONG RegistryKey::EnumValue(	DWORD index,
 
 	if (result == ERROR_MORE_DATA)
 	{
-		// Resize buffers according to required sizes and retry once.
+		// Resize buffers to the required sizes and retry
 		name_buffer.assign(name_len + 1, L'\0');
 		data_out.resize(data_size);
 
@@ -178,18 +177,19 @@ LONG RegistryKey::EnumValue(	DWORD index,
 
 	if (result == ERROR_SUCCESS)
 	{
+		// Trim name and data to actual sizes
 		name_out.assign(name_buffer.data(), name_len);
-		data_out.resize(data_size);	// shrink to actual
+		data_out.resize(data_size);
 	}
 
 	return result;
 }
 
-//------------------------------------------------------
-// Query a REG_SZ / REG_EXPAND_SZ string value
-//------------------------------------------------------
-LONG RegistryKey::QueryString(	const std::wstring& value_name,
-								std::wstring& value_out) const noexcept
+// Queries a REG_SZ or REG_EXPAND_SZ string value from the registry.
+// Automatically resizes the buffer if the initial capacity is insufficient.
+// Returns ERROR_SUCCESS on success; ERROR_DATATYPE_MISMATCH if the value is not a string type.
+LONG RegistryKey::QueryString(const std::wstring& value_name,
+	std::wstring& value_out) const noexcept
 {
 	value_out.clear();
 
@@ -199,7 +199,7 @@ LONG RegistryKey::QueryString(	const std::wstring& value_name,
 	DWORD type = 0;
 	DWORD data_size = 0;
 
-	// First call: get size
+	// First call: query the required buffer size
 	LONG result = ::RegQueryValueExW(
 		m_hKey,
 		value_name.c_str(),
@@ -211,11 +211,13 @@ LONG RegistryKey::QueryString(	const std::wstring& value_name,
 	if (result != ERROR_SUCCESS)
 		return result;
 
+	// Verify the value is a string type
 	if (type != REG_SZ && type != REG_EXPAND_SZ)
 		return ERROR_DATATYPE_MISMATCH;
 
 	std::vector<wchar_t> buffer(data_size / sizeof(wchar_t));
 
+	// Second call: retrieve the actual value
 	result = ::RegQueryValueExW(
 		m_hKey,
 		value_name.c_str(),
@@ -229,7 +231,7 @@ LONG RegistryKey::QueryString(	const std::wstring& value_name,
 		// Ensure null-terminated and assign
 		if (!buffer.empty())
 		{
-			// Some APIs may return without trailing null; be defensive.
+			// Some APIs may return without a trailing null; be defensive
 			if (buffer.back() != L'\0')
 				buffer.push_back(L'\0');
 			value_out.assign(buffer.data());
@@ -239,11 +241,10 @@ LONG RegistryKey::QueryString(	const std::wstring& value_name,
 	return result;
 }
 
-//------------------------------------------------------
-// Query a REG_DWORD value
-//------------------------------------------------------
-LONG RegistryKey::QueryDword(	const std::wstring& value_name,
-								DWORD& value_out) const noexcept
+// Queries a REG_DWORD value from the registry.
+// Returns ERROR_SUCCESS on success; ERROR_DATATYPE_MISMATCH if the value is not a DWORD.
+LONG RegistryKey::QueryDword(const std::wstring& value_name,
+	DWORD& value_out) const noexcept
 {
 	value_out = 0;
 
@@ -264,17 +265,17 @@ LONG RegistryKey::QueryDword(	const std::wstring& value_name,
 	if (result != ERROR_SUCCESS)
 		return result;
 
+	// Verify type and size
 	if (type != REG_DWORD || data_size != sizeof(DWORD))
 		return ERROR_DATATYPE_MISMATCH;
 
 	return ERROR_SUCCESS;
 }
 
-//------------------------------------------------------
-// Set a REG_SZ value
-//------------------------------------------------------
-LONG RegistryKey::SetString(	const std::wstring& value_name,
-								const std::wstring& value) const noexcept
+// Sets a REG_SZ string value in the registry.
+// Returns ERROR_SUCCESS on success; other LONG values indicate Windows API errors.
+LONG RegistryKey::SetString(const std::wstring& value_name,
+	const std::wstring& value) const noexcept
 {
 	if (m_hKey == nullptr)
 		return ERROR_INVALID_HANDLE;
@@ -291,11 +292,10 @@ LONG RegistryKey::SetString(	const std::wstring& value_name,
 		byte_count);
 }
 
-//------------------------------------------------------
-// Set a REG_DWORD value
-//------------------------------------------------------
-LONG RegistryKey::SetDword(		const std::wstring& value_name,
-								DWORD value) const noexcept
+// Sets a REG_DWORD value in the registry.
+// Returns ERROR_SUCCESS on success; other LONG values indicate Windows API errors.
+LONG RegistryKey::SetDword(const std::wstring& value_name,
+	DWORD value) const noexcept
 {
 	if (m_hKey == nullptr)
 		return ERROR_INVALID_HANDLE;
@@ -309,10 +309,9 @@ LONG RegistryKey::SetDword(		const std::wstring& value_name,
 		static_cast<DWORD>(sizeof(DWORD)));
 }
 
-//------------------------------------------------------
-// Delete a single value
-//------------------------------------------------------
-LONG RegistryKey::DeleteValue(	const std::wstring& value_name) const noexcept
+// Deletes a single value from the registry key.
+// Returns ERROR_SUCCESS on success; ERROR_FILE_NOT_FOUND if the value does not exist.
+LONG RegistryKey::DeleteValue(const std::wstring& value_name) const noexcept
 {
 	if (m_hKey == nullptr)
 		return ERROR_INVALID_HANDLE;
@@ -322,15 +321,15 @@ LONG RegistryKey::DeleteValue(	const std::wstring& value_name) const noexcept
 		value_name.c_str());
 }
 
-//------------------------------------------------------
-// Delete a subkey (must be empty)
-//------------------------------------------------------
-LONG RegistryKey::DeleteSubkey(	const std::wstring& sub_key_name) const noexcept
+// Deletes a subkey from the registry.
+// The subkey must be empty (contain no child keys or values).
+// Returns ERROR_SUCCESS on success; ERROR_FILE_NOT_FOUND if the subkey does not exist;
+// ERROR_ACCESS_DENIED if the subkey is not empty or contains protected entries.
+LONG RegistryKey::DeleteSubkey(const std::wstring& sub_key_name) const noexcept
 {
 	if (m_hKey == nullptr)
 		return ERROR_INVALID_HANDLE;
 
-	// Note: this will fail with ERROR_ACCESS_DENIED if the subkey is not empty.
 	return ::RegDeleteKeyW(
 		m_hKey,
 		sub_key_name.c_str());
